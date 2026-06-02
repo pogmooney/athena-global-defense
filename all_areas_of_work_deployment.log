@@ -1,0 +1,12 @@
+DEPLOYING ALL AREAS OF WORK SUITE
+============================================================
+
+============================================================
+Traceback (most recent call last):
+  File "/Users/patrickbrycemooney/athena-global-defense-new/master_deployment.py", line 76, in <module>
+    main()
+  File "/Users/patrickbrycemooney/athena-global-defense-new/master_deployment.py", line 68, in main
+    if run_app(app):
+  File "/Users/patrickbrycemooney/athena-global-defense-new/master_deployment.py", line 37, in run_app
+    print(f"DEPLOYING {app_name.upper().replace('_', ' ')} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+NameError: name 'datetime' is not defined
