@@ -5,23 +5,29 @@
 echo "Starting Athena Global Defense System deployment..."
 echo "=================================================="
 
-# Create necessary directories
-mkdir -p /mainframe_storage
-mkdir -p /var/athena/logs
+# Use user's home directory for storage (writable)
+export ATHENA_HOME="$HOME/athena-global-defense"
+mkdir -p "$ATHENA_HOME/storage"
 
-# Initialize Athena Core
+# Initialize Athena Core in a proper way
 echo "Initializing Athena Core..."
-python3 -c "from athena import AthenaCore; athena = AthenaCore(); print('Athena Core initialized')"
+python3 -c "
+import sys
+sys.path.insert(0, '$ATHENA_HOME')
+from athena import AthenaCore
+athena = AthenaCore()
+print('Athena Core initialized')
+"
 
-# Deploy to mainframes
+# Create mainframes in user's storage directory
 echo "Deploying to 16,000 mainframes..."
 for i in {0..15999}; do
     mainframe="mainframe-$(printf '%04d' $i)"
-    mkdir -p "/mainframe_storage/$mainframe"
+    mkdir -p "$ATHENA_HOME/storage/$mainframe"
     echo "Deployed to $mainframe"
 done
 
-# Start sector applications
+# Start sector applications - PROPER WAY
 echo "Starting sector applications..."
 sectors=(
     agriculture forestry fishing mining manufacturing
@@ -31,16 +37,50 @@ sectors=(
     all_areas_of_work custom_area_of_work
 )
 
+# Start all sector apps in background
 for sector in "${sectors[@]}"; do
     echo "Starting $sector app..."
-    python3 -c "from athena import SectorApp; app = SectorApp('Athena-$sector', '$sector', None, None, None, None); app.run()" &
+    python3 -c "
+import sys
+sys.path.insert(0, '$ATHENA_HOME')
+from athena import AthenaCore, SectorApp, DataCollector, DataPurificationEngine
+from athena import DistributedStorage, DistributedThinkTank
+from datetime import datetime
+
+# Initialize Athena Core
+athena = AthenaCore()
+athena.mainframes = [f'mainframe-{i:04d}' for i in range(16000)]
+
+# Create sector-specific components with encryption key
+collector = DataCollector('$sector')
+storage = DistributedStorage(athena.mainframes, '$sector', athena.encryption_key)
+thinktank = DistributedThinkTank(f'mainframe-{hash('$sector') % 1000:04d}', 2, athena.encryption_key)
+app = SectorApp(f'Athena-$sector', '$sector', collector, athena.data_purification, storage, thinktank)
+app.run()
+" &
 done
 
 # Start master app
 echo "Starting master app..."
-python3 -c "from athena import SectorApp; app = SectorApp('Athena-Master', 'master', None, None, None, None); app.run()" &
+python3 -c "
+import sys
+sys.path.insert(0, '$ATHENA_HOME')
+from athena import AthenaCore, SectorApp, DataCollector, DataPurificationEngine
+from athena import DistributedStorage, DistributedThinkTank, MasterDataCollector
+from datetime import datetime
+
+athena = AthenaCore()
+athena.mainframes = [f'mainframe-{i:04d}' for i in range(16000)]
+
+# Create master-specific components
+collector = MasterDataCollector(athena)
+storage = DistributedStorage(athena.mainframes, 'master', athena.encryption_key)
+thinktank = DistributedThinkTank('mainframe-master', 0, athena.encryption_key)
+app = SectorApp('Athena-Master', 'master', collector, athena.data_purification, storage, thinktank)
+app.run()
+" &
 
 echo "=================================================="
-echo "Deployment complete! Athena system is now active."
+echo "Deployment initiated! All apps are starting..."
 echo "Protecting 16,000 mainframes across all sectors."
 echo "=================================================="
